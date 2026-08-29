@@ -81,7 +81,7 @@ function DetailModal({ order, onClose, onFinalize, onRefresh }) {
         {order.previous_notes && <div className="border-l-2 border-blue-600 pl-3 bg-blue-50/40 dark:bg-blue-950/30 p-2"><b>Observações da última O.S. deste cliente:</b><br/>{order.previous_notes}</div>}
         {order.materials?.length > 0 && <div>
           <div className="text-xs uppercase tracking-[0.15em] text-muted-foreground mb-1 flex items-center gap-1"><Package size={12}/>Materiais a levar</div>
-          <ul className="list-disc pl-5">{order.materials.map((m,i)=><li key={i}>Produto × {m.quantity_taken}</li>)}</ul>
+          <ul className="list-disc pl-5">{order.materials.map((m)=><li key={m.product_id}>Produto × {m.quantity_taken}</li>)}</ul>
         </div>}
         {order.attachments?.length > 0 && <div>
           <div className="text-xs uppercase tracking-[0.15em] text-muted-foreground mb-1">Anexos</div>
@@ -134,7 +134,7 @@ function FinalizeModal({ order, onClose, onDone }) {
           <div className="text-xs text-muted-foreground mb-2">Informe quantos de cada material foram realmente aplicados. O que sobrar volta pro estoque.</div>
           {used.length===0 && <div className="text-sm text-muted-foreground">Sem materiais reservados nesta O.S.</div>}
           {used.map((m,i) => (
-            <div key={i} className="flex items-center gap-2 mt-1 text-sm">
+            <div key={m.product_id} className="flex items-center gap-2 mt-1 text-sm">
               <span className="flex-1 truncate">Material {i+1}</span>
               <input data-testid={`fin-used-${i}`} type="number" min="0" max={m.quantity_taken} value={m.quantity_used} onChange={e => { const u=[...used]; u[i]={...u[i], quantity_used: Math.min(m.quantity_taken, Math.max(0, parseInt(e.target.value)||0))}; setUsed(u); }} className="w-20 border border-border rounded px-2 py-1 bg-transparent"/>
               <span className="text-muted-foreground text-xs">de {m.quantity_taken}</span>
@@ -148,7 +148,7 @@ function FinalizeModal({ order, onClose, onDone }) {
         <div>
           <label className="text-sm font-medium">Assinatura do cliente</label>
           <div className="text-xs text-muted-foreground mb-1">Peça para o cliente assinar abaixo com o dedo ou caneta</div>
-          <SignatureCanvas ref={sigRef} canvasProps={{className: "sig-canvas w-full h-40", "data-testid":"my-signature-pad"}}/>
+          <SignatureCanvas ref={sigRef} canvasProps={MY_SIG_CANVAS_PROPS}/>
           <button type="button" onClick={()=>sigRef.current.clear()} className="text-xs text-muted-foreground mt-1 hover:text-foreground">Limpar assinatura</button>
         </div>
         <div className="flex gap-2 pt-4 border-t border-border">
@@ -159,6 +159,8 @@ function FinalizeModal({ order, onClose, onDone }) {
     </Modal>
   );
 }
+
+const MY_SIG_CANVAS_PROPS = { className: "sig-canvas w-full h-40", "data-testid": "my-signature-pad" };
 
 function Field({ label, children }) {
   return <div><div className="text-xs uppercase tracking-[0.15em] text-muted-foreground">{label}</div><div className="mt-0.5">{children}</div></div>;

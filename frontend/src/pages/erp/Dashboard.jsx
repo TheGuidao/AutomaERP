@@ -19,9 +19,11 @@ export default function Dashboard() {
         can("garage") ? api.get("/vehicles") : Promise.resolve({data:{vehicles:[]}}),
       ]);
       setOrders(o.data.orders); setNotes(n.data.notes); setVehicles(v.data.vehicles);
-    } catch {}
+    } catch (err) {
+      console.error("Dashboard load failed:", err);
+    }
   };
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
 
   const addNote = async () => {
     if (!noteText.trim()) return;

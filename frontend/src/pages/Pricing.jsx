@@ -19,7 +19,10 @@ export default function Pricing() {
     try {
       const { data } = await api.post("/coupons/validate", { code: couponCode, lookup_key });
       setValidated({...validated, [lookup_key]: data});
-    } catch (e) { toast.error("Erro validando cupom"); }
+    } catch (err) {
+      console.error("Coupon validate failed:", err);
+      toast.error("Erro validando cupom");
+    }
   };
 
   const validateAll = async () => {
@@ -28,7 +31,7 @@ export default function Pricing() {
       try {
         const { data } = await api.post("/coupons/validate", { code: couponCode, lookup_key: p.lookup_key });
         results[p.lookup_key] = data;
-      } catch {}
+      } catch (err) { console.error("Coupon validate failed:", err); }
     }
     setValidated(results);
     if (couponCode && Object.values(results).some(r => r.valid)) toast.success("Cupom aplicado!");

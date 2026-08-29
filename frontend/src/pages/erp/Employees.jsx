@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import api from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
@@ -23,7 +23,9 @@ export default function Employees() {
   const load = async () => { const {data} = await api.get("/employees"); setEmps(data.employees); };
   useEffect(() => { load(); }, []);
 
-  if (!isCeo) return <div className="grid-panel p-8 text-slate-500">Somente o CEO tem acesso a esta aba.</div>;
+  if (!isCeo) return <div className="grid-panel p-8 text-muted-foreground">Somente o CEO tem acesso a esta aba.</div>;
+
+  const filtered = emps.filter(e => !q || [e.name, e.email, e.role].filter(Boolean).some(f => f.toLowerCase().includes(q.toLowerCase())));
 
   const emptyPerms = () => TABS.reduce((a,t)=>{a[t.key]={view:false,edit:false};return a;}, {});
   const openNew = () => setForm({ name:"", email:"", password:"", role:"", permissions: emptyPerms(), _new:true });
@@ -58,7 +60,7 @@ export default function Employees() {
       <div className="grid-panel">
         <table className="w-full text-sm">
           <thead className="text-left"><tr><th className="p-3">Nome</th><th className="p-3">Email</th><th className="p-3">Função</th><th className="p-3"></th></tr></thead>
-          <tbody>{emps.filter(e=>!q||[e.name,e.email,e.role].filter(Boolean).some(f=>f.toLowerCase().includes(q.toLowerCase()))).map(e => (
+          <tbody>{filtered.map(e => (
             <tr key={e.id} className="border-t hover:bg-slate-50">
               <td className="p-3 font-medium">{e.name}</td><td className="p-3">{e.email}</td><td className="p-3">{e.role || (e.company_id && "—")}</td>
               <td className="p-3 text-right">

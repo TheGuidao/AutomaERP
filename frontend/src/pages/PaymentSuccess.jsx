@@ -23,7 +23,9 @@ export default function PaymentSuccess() {
           await refresh();
           return;
         }
-      } catch {}
+      } catch (err) {
+        console.error("Payment status poll failed:", err);
+      }
       if (tries < 20) setTimeout(poll, 2000);
       else setStatus("timeout");
     };

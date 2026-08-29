@@ -1,0 +1,44 @@
+{
+  "summary": "Iteration 3 backend-only. Validated JWT httpOnly cookie migration + backward compat with Bearer, /auth/logout clearing cookie, /api/files no longer accepting ?token= query (now Depends(current_user) via cookie or Bearer with APP_NAME + company_id path scoping), and full regression on prior features. 17/17 new checks passed + 26/26 iter-2 regression = 43/43. Zero regressions.",
+  "tested_scope": ["backend", "auth-cookie", "logout", "files-scoping", "regression"],
+  "passed": [
+    "POST /api/auth/login sets Set-Cookie automa_token with HttpOnly, Secure, Max-Age=604800, Path=/ and returns {token,user} body (backward compat)",
+    "POST /api/auth/register sets same cookie",
+    "GET /api/auth/me: 401 with no auth; 200 with cookie only; 200 with Bearer only; 401 with bad cookie; 401 with bad Bearer",
+    "POST /api/auth/logout returns 200, emits Set-Cookie clearing automa_token (Max-Age=0 / past expires), and subsequent /auth/me on same session is 401",
+    "GET /api/files with ?token=<jwt> in query -> 401 (query auth no longer works)",
+    "GET /api/files with no auth -> 401; with auth but path outside APP_NAME (automa-erp) -> 403; with auth but wrong company_id in path -> 403; enforced identically via cookie and via Bearer",
+    "Regression smoke via BOTH cookie (requests.Session) and Bearer header on same user: /companies create, /clients POST+GET, /categories+/products POST+GET, /orders POST + cross-auth GET all 200",
+    "Previous iter-2 suite (coupons + cron + regression) still 26/26"
+  ],
+  "failed": [],
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "Set-Cookie for automa_token", "issue": "Backend code sets SameSite=Lax (as specified) but the preview ingress rewrites it to SameSite=None; Partitioned to support the emergentagent.com iframe/cross-site preview. Functionally correct in preview; verify prod deployment preserves Lax."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_cookie_auth.py",
+    "/app/backend/tests/test_coupons_and_cron.py",
+    "/app/test_reports/pytest/iteration_3.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py still 1206 lines - well beyond 700-line guideline; split into routers (auth, payments, coupons, cron, files, erp resources).",
+    "response.delete_cookie in /auth/logout should also pass secure=True and samesite matching the set path (some browsers require identical attrs to clear). Currently only path='/' is passed - works because most browsers match by (name, domain, path), but stricter setups may leave the cookie. Recommend using same (httponly, secure, samesite) triplet on delete.",
+    "/files scoping check: `if user.get('company_id') and f'/{user[\"company_id\"]}/' not in path` — if a user has NO company_id yet (fresh signup), they can read any path inside APP_NAME/. Consider requiring company membership OR explicit ownership check (e.g., path startswith APP_NAME/uploads/<company_id>/).",
+    "Cookie set with secure=True is fine over HTTPS, but locally over HTTP (dev) the cookie will be dropped silently. Consider gating secure on env (e.g., APP_ENV=='prod') for local dev.",
+    "current_user reads token from cookie first, then Bearer; if BOTH are present with different users (e.g., stale cookie + new bearer), the cookie wins. May be surprising; consider preferring Bearer when explicit or documenting order."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_cookie_auth.py (new - 17 tests)"
+  ],
+  "success_rate": {"backend": "100% (43/43 combined; 17/17 new)", "frontend": "not tested (skipped per request)"},
+  "test_credentials": "Admin: guibitt85@gmail.com / Test1234! (preserved). Per-test users generated with iter3_/cookiereg_ prefixes.",
+  "seed_data_creation": "Per-test disposable users + one paid free_iter3_* payment_transaction injected via pymongo to bypass Stripe. No cleanup needed (isolated ids).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Run: pytest /app/backend/tests/ -v. Two suites: test_cookie_auth.py (iter3, 17) and test_coupons_and_cron.py (iter2, 26). Both are self-contained and idempotent. Cookie SameSite in preview appears as 'None; Partitioned' due to platform ingress rewrite - accept both 'lax' and 'none' in assertions if extending."
+}

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import api from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
@@ -25,6 +25,11 @@ export default function Obras() {
   const del = async (id) => { if (!window.confirm("Excluir?")) return; await api.delete(`/clients/${id}`); load(); };
   const openHistory = async (c) => { const { data } = await api.get(`/clients/${c.id}/history`); setHistory({ client: c, orders: data.history }); };
 
+  const filtered = useMemo(
+    () => clients.filter(c => !q || [c.name, c.contact_name, c.phone, c.address].filter(Boolean).some(f => f.toLowerCase().includes(q.toLowerCase()))),
+    [clients, q]
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -33,12 +38,12 @@ export default function Obras() {
       </div>
       <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
         <input data-testid="obras-search" placeholder="Buscar cliente por nome, contato ou telefone..." value={q} onChange={e=>setQ(e.target.value)} className="border border-border rounded px-3 py-2 bg-transparent text-sm max-w-md w-full"/>
-        <div className="text-xs text-muted-foreground">{clients.filter(c=>!q||[c.name,c.contact_name,c.phone,c.address].filter(Boolean).some(f=>f.toLowerCase().includes(q.toLowerCase()))).length} de {clients.length}</div>
+        <div className="text-xs text-muted-foreground">{filtered.length} de {clients.length}</div>
       </div>
       <div className="grid-panel">
         <table className="w-full text-sm">
           <thead className="text-left"><tr><th className="p-3">Nome</th><th className="p-3">Contato</th><th className="p-3">Telefone</th><th className="p-3">Endereço</th><th className="p-3"></th></tr></thead>
-          <tbody>{clients.filter(c=>!q||[c.name,c.contact_name,c.phone,c.address].filter(Boolean).some(f=>f.toLowerCase().includes(q.toLowerCase()))).map(c => (
+          <tbody>{filtered.map(c => (
             <tr key={c.id} className="border-t hover:bg-slate-50">
               <td className="p-3 font-medium">{c.name}</td><td className="p-3">{c.contact_name}</td><td className="p-3">{c.phone}</td><td className="p-3 text-slate-500">{c.address}</td>
               <td className="p-3 text-right">
@@ -49,7 +54,7 @@ export default function Obras() {
                 </>}
               </td>
             </tr>
-          ))}{clients.filter(c=>!q||[c.name,c.contact_name,c.phone,c.address].filter(Boolean).some(f=>f.toLowerCase().includes(q.toLowerCase()))).length===0 && <tr><td colSpan="5" className="p-8 text-center text-muted-foreground">Nenhum cliente</td></tr>}</tbody>
+          ))}{filtered.length===0 && <tr><td colSpan="5" className="p-8 text-center text-muted-foreground">Nenhum cliente</td></tr>}</tbody>
         </table>
       </div>
 

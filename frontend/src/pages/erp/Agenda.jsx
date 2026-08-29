@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import api, { fileUrl } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
@@ -42,9 +42,15 @@ export default function Agenda() {
   };
   const del = async (id) => { if (!window.confirm("Excluir?")) return; await api.delete(`/orders/${id}`); load(); };
 
-  const filteredOrders = orders.filter(o => !q || [o.title, o.description, o.client_snapshot?.name].filter(Boolean).some(f=>f.toLowerCase().includes(q.toLowerCase())));
-  const groupedByDate = filteredOrders.reduce((acc, o) => { (acc[o.scheduled_date] = acc[o.scheduled_date] || []).push(o); return acc; }, {});
-  const dates = Object.keys(groupedByDate).sort();
+  const filteredOrders = useMemo(
+    () => orders.filter(o => !q || [o.title, o.description, o.client_snapshot?.name].filter(Boolean).some(f=>f.toLowerCase().includes(q.toLowerCase()))),
+    [orders, q]
+  );
+  const groupedByDate = useMemo(
+    () => filteredOrders.reduce((acc, o) => { (acc[o.scheduled_date] = acc[o.scheduled_date] || []).push(o); return acc; }, {}),
+    [filteredOrders]
+  );
+  const dates = useMemo(() => Object.keys(groupedByDate).sort(), [groupedByDate]);
 
   return (
     <div className="space-y-6">
@@ -109,7 +115,7 @@ function OSForm({ form, setForm, clients, employees, vehicles, products, onSave,
         <Row label="Veículo"><select data-testid="os-vehicle" value={form.vehicle_id || ""} onChange={e=>upd("vehicle_id", e.target.value)} className="w-full border rounded px-2 py-2"><option value="">Nenhum</option>{vehicles.filter(v=>v.status==="available"||v.id===form.vehicle_id).map(v => <option key={v.id} value={v.id}>{v.plate} - {v.model}</option>)}</select></Row>
         <Row label="Materiais">
           {form.materials.map((m, i) => (
-            <div key={i} className="flex gap-2 mb-2">
+            <div key={m._id || `mat-${i}`} className="flex gap-2 mb-2">
               <select value={m.product_id} onChange={e=>updMat(i,"product_id",e.target.value)} className="flex-1 border rounded px-2 py-1 text-sm">{products.map(p => <option key={p.id} value={p.id}>{p.name} ({p.quantity - (p.reserved||0)} disp.)</option>)}</select>
               <input type="number" min="1" value={m.quantity_taken} onChange={e=>updMat(i,"quantity_taken",parseInt(e.target.value)||1)} className="w-20 border rounded px-2 py-1 text-sm"/>
               <button type="button" onClick={()=>rmMat(i)} className="text-red-500 px-2"><X size={14}/></button>
@@ -148,7 +154,7 @@ function OSDetail({ order, onClose, onEdit, onDelete, onFinalize, canEdit, produ
         {order.previous_notes && <div className="border-l-2 border-blue-600 pl-3 bg-blue-50/40 p-2"><b>Da última O.S.:</b> {order.previous_notes}</div>}
         <div><b>Funcionários:</b> {order.employee_ids.map(empName).join(", ") || "—"}</div>
         {veh && <div><b>Veículo:</b> {veh.plate} - {veh.model}</div>}
-        {order.materials?.length > 0 && <div><b>Materiais:</b><ul className="list-disc pl-5">{order.materials.map((m,i)=><li key={i}>{productName(m.product_id)} × {m.quantity_taken}</li>)}</ul></div>}
+        {order.materials?.length > 0 && <div><b>Materiais:</b><ul className="list-disc pl-5">{order.materials.map((m)=><li key={m.product_id}>{productName(m.product_id)} × {m.quantity_taken}</li>)}</ul></div>}
         {order.attachments?.length > 0 && <div><b>Anexos:</b><ul className="pl-1 space-y-1">{order.attachments.map(a => <li key={a.id}><a href={fileUrl(a.path)} target="_blank" rel="noreferrer" className="text-blue-600 underline flex items-center gap-1"><Paperclip size={12}/>{a.filename}</a></li>)}</ul></div>}
         {order.signature_path && <div><b>Assinatura:</b><br/><img src={fileUrl(order.signature_path)} alt="assinatura" className="border max-h-32 mt-1"/></div>}
         <div className="flex gap-2 pt-4 border-t flex-wrap">
@@ -184,7 +190,7 @@ function OSFinalizeModal({ order, onClose, onDone }) {
         <div>
           <label className="text-sm font-medium">Materiais efetivamente usados</label>
           {used.map((m,i) => (
-            <div key={i} className="flex items-center gap-2 mt-1 text-sm">
+            <div key={m.product_id} className="flex items-center gap-2 mt-1 text-sm">
               <span className="flex-1">Produto</span>
               <input type="number" min="0" max={m.quantity_taken} value={m.quantity_used} onChange={e => { const u=[...used]; u[i]={...u[i], quantity_used: parseInt(e.target.value)||0}; setUsed(u); }} className="w-20 border rounded px-2 py-1"/>
               <span className="text-slate-500 text-xs">de {m.quantity_taken}</span>
@@ -199,7 +205,7 @@ function OSFinalizeModal({ order, onClose, onDone }) {
         <div>
           <label className="text-sm font-medium">Assinatura do cliente</label>
           <div className="mt-1">
-            <SignatureCanvas ref={sigRef} canvasProps={{className: "sig-canvas w-full h-40", "data-testid":"signature-pad"}}/>
+            <SignatureCanvas ref={sigRef} canvasProps={SIG_CANVAS_PROPS}/>
             <button type="button" onClick={()=>sigRef.current.clear()} className="text-xs text-slate-500 mt-1">Limpar</button>
           </div>
         </div>
@@ -211,6 +217,8 @@ function OSFinalizeModal({ order, onClose, onDone }) {
     </Modal>
   );
 }
+
+const SIG_CANVAS_PROPS = { className: "sig-canvas w-full h-40", "data-testid": "signature-pad" };
 
 function Modal({ children, onClose, title, testid }) {
   return (

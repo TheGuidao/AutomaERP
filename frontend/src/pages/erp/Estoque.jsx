@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import api, { fileUrl } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
@@ -22,8 +22,11 @@ export default function Estoque() {
   };
   useEffect(() => { load(); }, []);
 
-  const filtered = (tab === "all" ? prods : prods.filter(p => p.category_id === tab))
-    .filter(p => !q || p.name.toLowerCase().includes(q.toLowerCase()) || (p.sku||"").toLowerCase().includes(q.toLowerCase()));
+  const filtered = useMemo(() => {
+    const base = tab === "all" ? prods : prods.filter(p => p.category_id === tab);
+    const term = q.toLowerCase();
+    return term ? base.filter(p => p.name.toLowerCase().includes(term) || (p.sku||"").toLowerCase().includes(term)) : base;
+  }, [prods, tab, q]);
 
   const saveCat = async () => { if (!catName) return; await api.post("/categories", { name: catName }); setCatName(""); setCatForm(false); load(); };
   const delCat = async (id) => { if (!window.confirm("Excluir categoria?")) return; await api.delete(`/categories/${id}`); load(); };

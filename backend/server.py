@@ -243,11 +243,23 @@ def _reminder_html(name: str, company_name: str, days_left: int, expires_iso: st
 # ---------- Auth ----------
 security = HTTPBearer(auto_error=False)
 
-async def current_user(cred: Optional[HTTPAuthorizationCredentials] = Depends(security)):
-    if not cred:
+def _set_auth_cookie(response: Response, token: str) -> None:
+    """Set httpOnly cookie with SameSite=Lax and Secure for HTTPS."""
+    response.set_cookie(
+        key="automa_token", value=token,
+        httponly=True, secure=True, samesite="lax",
+        max_age=60 * 60 * 24 * 7, path="/",
+    )
+
+async def current_user(request: Request, cred: Optional[HTTPAuthorizationCredentials] = Depends(security)):
+    # Prefer httpOnly cookie; fall back to Authorization: Bearer for API/testing clients.
+    token = request.cookies.get("automa_token")
+    if not token and cred:
+        token = cred.credentials
+    if not token:
         raise HTTPException(401, "Não autenticado")
     try:
-        payload = jwt.decode(cred.credentials, JWT_SECRET, algorithms=[JWT_ALGO])
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGO])
         user_id = payload["sub"]
     except jwt.PyJWTError:
         raise HTTPException(401, "Token inválido")
@@ -454,7 +466,7 @@ api = APIRouter(prefix="/api")
 # AUTH
 # =====================================================
 @api.post("/auth/register")
-async def register(body: RegisterIn):
+async def register(body: RegisterIn, response: Response):
     existing = await db.users.find_one({"email": body.email.lower()})
     if existing:
         raise HTTPException(400, "Email já cadastrado")
@@ -470,15 +482,25 @@ async def register(body: RegisterIn):
     }
     await db.users.insert_one(user)
     token = create_token(user["id"])
+    _set_auth_cookie(response, token)
     return {"token": token, "user": clean(user)}
 
 @api.post("/auth/login")
-async def login(body: LoginIn):
+async def login(body: LoginIn, response: Response):
     user = await db.users.find_one({"email": body.email.lower()})
     if not user or not verify_pw(body.password, user["password_hash"]):
         raise HTTPException(401, "Credenciais inválidas")
     token = create_token(user["id"])
+    _set_auth_cookie(response, token)
     return {"token": token, "user": clean(dict(user))}
+
+@api.post("/auth/logout")
+async def logout(response: Response):
+    response.delete_cookie(
+        key="automa_token", path="/",
+        httponly=True, secure=True, samesite="lax",
+    )
+    return {"ok": True}
 
 @api.get("/auth/me")
 async def me(user=Depends(current_user)):
@@ -968,18 +990,13 @@ async def attach_to_order(oid: str, request: Request, user=Depends(current_user)
     return {"attachment": entry}
 
 @api.get("/files")
-async def get_file(path: str = Query(...), token: str = Query(...)):
-    try:
-        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGO])
-        user_id = payload["sub"]
-    except jwt.PyJWTError:
-        raise HTTPException(401, "Token inválido")
-    u = await db.users.find_one({"id": user_id})
-    if not u: raise HTTPException(401, "Usuário inválido")
-    # ensure path starts with app name and belongs to a company the user is on
+async def get_file(path: str = Query(...), user=Depends(current_user)):
     if not path.startswith(APP_NAME + "/"):
         raise HTTPException(403, "Acesso negado")
-    if u.get("company_id") and f"/{u['company_id']}/" not in path:
+    company_id = user.get("company_id")
+    if not company_id:
+        raise HTTPException(403, "Sem empresa vinculada")
+    if f"/{company_id}/" not in path:
         raise HTTPException(403, "Acesso negado")
     data, ct = get_object(path)
     return Response(content=data, media_type=ct)

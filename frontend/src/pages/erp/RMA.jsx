@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import api from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
@@ -24,6 +24,11 @@ export default function RMA() {
   };
   const del = async (id) => { if (!window.confirm("Excluir?")) return; await api.delete(`/rma/${id}`); load(); };
 
+  const filtered = useMemo(
+    () => items.filter(r => !q || [r.product_name, r.serial_number, r.problem].filter(Boolean).some(f => f.toLowerCase().includes(q.toLowerCase()))),
+    [items, q]
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -34,7 +39,7 @@ export default function RMA() {
       <div className="grid-panel">
         <table className="w-full text-sm">
           <thead className="text-left"><tr><th className="p-3">Produto</th><th className="p-3">Nº série</th><th className="p-3">Problema</th><th className="p-3">Status</th><th className="p-3">Data</th><th className="p-3"></th></tr></thead>
-          <tbody>{items.filter(r=>!q||[r.product_name,r.serial_number,r.problem].filter(Boolean).some(f=>f.toLowerCase().includes(q.toLowerCase()))).map(r => (
+          <tbody>{filtered.map(r => (
             <tr key={r.id} className="border-t hover:bg-slate-50">
               <td className="p-3">{r.product_name}</td><td className="p-3 font-mono">{r.serial_number}</td>
               <td className="p-3 text-slate-600">{r.problem}</td>

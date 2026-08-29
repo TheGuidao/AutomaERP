@@ -49,12 +49,12 @@ export default function Landing() {
       <section className="max-w-7xl mx-auto px-6 py-16">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
           {[
-            {icon: ClipboardCheck, title: "Ordens de Serviço", desc: "Crie O.S. com cliente, equipe, veículo, materiais, anexos e assinatura digital do cliente."},
-            {icon: Warehouse, title: "Estoque inteligente", desc: "Baixa automática de materiais ao vincular na O.S. e retorno do que sobrou."},
-            {icon: Users, title: "Equipe com permissões", desc: "Defina o que cada funcionário vê e edita em cada aba do sistema."},
-            {icon: ShieldCheck, title: "Histórico completo", desc: "Toda O.S. de um cliente puxa automaticamente as informações da anterior."},
+            {id:"os", icon: ClipboardCheck, title: "Ordens de Serviço", desc: "Crie O.S. com cliente, equipe, veículo, materiais, anexos e assinatura digital do cliente."},
+            {id:"stock", icon: Warehouse, title: "Estoque inteligente", desc: "Baixa automática de materiais ao vincular na O.S. e retorno do que sobrou."},
+            {id:"team", icon: Users, title: "Equipe com permissões", desc: "Defina o que cada funcionário vê e edita em cada aba do sistema."},
+            {id:"hist", icon: ShieldCheck, title: "Histórico completo", desc: "Toda O.S. de um cliente puxa automaticamente as informações da anterior."},
           ].map((f, i) => (
-            <div key={i} className={`border border-slate-200 p-6 ${i === 0 ? "md:col-span-7" : i === 1 ? "md:col-span-5" : "md:col-span-6"}`}>
+            <div key={f.id} className={`border border-slate-200 p-6 ${i === 0 ? "md:col-span-7" : i === 1 ? "md:col-span-5" : "md:col-span-6"}`}>
               <f.icon className="text-blue-600 mb-4" size={22}/>
               <h3 className="font-display text-xl font-semibold">{f.title}</h3>
               <p className="text-slate-600 mt-2">{f.desc}</p>
@@ -72,15 +72,15 @@ export default function Landing() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {[
-            {name: "Mensal", price: "100", period: "por 1 mês", features: ["Todas as funcionalidades", "Suporte por e-mail", "Sem limite de O.S."], featured: false},
-            {name: "Trimestral", price: "250", period: "por 3 meses", features: ["Todas as funcionalidades", "Economize R$ 50", "Suporte prioritário"], featured: true},
-            {name: "Anual", price: "900", period: "por 12 meses", features: ["Todas as funcionalidades", "Economize R$ 300", "Consultoria de setup"], featured: false},
+            {id:"m", name: "Mensal", price: "100", period: "por 1 mês", features: ["Todas as funcionalidades", "Suporte por e-mail", "Sem limite de O.S."], featured: false},
+            {id:"q", name: "Trimestral", price: "250", period: "por 3 meses", features: ["Todas as funcionalidades", "Economize R$ 50", "Suporte prioritário"], featured: true},
+            {id:"y", name: "Anual", price: "900", period: "por 12 meses", features: ["Todas as funcionalidades", "Economize R$ 300", "Consultoria de setup"], featured: false},
           ].map((p, i) => (
-            <div key={i} data-testid={`plan-card-${i}`} className={`border p-8 ${p.featured ? "border-blue-600 bg-blue-50/30" : "border-slate-200"}`}>
+            <div key={p.id} data-testid={`plan-card-${i}`} className={`border p-8 ${p.featured ? "border-blue-600 bg-blue-50/30" : "border-slate-200"}`}>
               {p.featured && <div className="text-xs uppercase tracking-[0.2em] text-blue-600 mb-3">Mais popular</div>}
               <h3 className="font-display text-2xl font-bold">{p.name}</h3>
               <div className="mt-6"><span className="text-4xl font-display font-bold">R$ {p.price}</span> <span className="text-slate-500">{p.period}</span></div>
-              <ul className="mt-6 space-y-2 text-sm">{p.features.map((f, j) => <li key={j} className="text-slate-600">— {f}</li>)}</ul>
+              <ul className="mt-6 space-y-2 text-sm">{p.features.map((f) => <li key={f} className="text-slate-600">— {f}</li>)}</ul>
               <Link data-testid={`plan-cta-${i}`} to="/register" className="mt-8 block text-center bg-black hover:bg-slate-800 text-white py-3 rounded font-medium">Assinar</Link>
             </div>
           ))}

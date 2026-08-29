@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import api from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
@@ -26,6 +26,11 @@ export default function Garage() {
   const del = async (id) => { if (!window.confirm("Excluir?")) return; await api.delete(`/vehicles/${id}`); load(); };
   const addMaint = async () => { await api.post(`/vehicles/${maint.vid}/maintenance`, { description: maint.description, km: parseInt(maint.km)||null }); setMaint(null); load(); toast.success("Manutenção registrada"); };
 
+  const filtered = useMemo(
+    () => vehicles.filter(v => !q || [v.plate, v.model].filter(Boolean).some(f => f.toLowerCase().includes(q.toLowerCase()))),
+    [vehicles, q]
+  );
+
   const statusColor = { available: "bg-green-100 text-green-700", in_use: "bg-blue-100 text-blue-700", maintenance: "bg-orange-100 text-orange-700" };
 
   return (
@@ -38,7 +43,7 @@ export default function Garage() {
       <div className="grid-panel">
         <table className="w-full text-sm">
           <thead className="text-left"><tr><th className="p-3">Placa</th><th className="p-3">Modelo</th><th className="p-3">Ano</th><th className="p-3">KM</th><th className="p-3">Status</th><th className="p-3"></th></tr></thead>
-          <tbody>{vehicles.filter(v=>!q||[v.plate,v.model].filter(Boolean).some(f=>f.toLowerCase().includes(q.toLowerCase()))).map(v => (
+          <tbody>{filtered.map(v => (
             <tr key={v.id} className="border-t hover:bg-slate-50">
               <td className="p-3 font-mono">{v.plate}</td>
               <td className="p-3">{v.model}</td>
