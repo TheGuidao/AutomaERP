@@ -1,0 +1,113 @@
+{
+  "theme": "light_and_dark_toggle",
+  "typography": {
+    "headings": "Cabinet Grotesk or Manrope for a structured, professional B2B look",
+    "body": "IBM Plex Sans or Inter for maximum legibility in dense dashboards",
+    "scale": {
+      "H1": "text-4xl sm:text-5xl lg:text-6xl tracking-tight",
+      "H2": "text-2xl sm:text-3xl lg:text-4xl tracking-tight",
+      "H3": "text-xl sm:text-2xl",
+      "H4": "text-lg sm:text-xl",
+      "Body": "text-base (mobile: text-sm)",
+      "Small": "text-sm uppercase tracking-[0.2em]"
+    },
+    "rules": "Never use Inter for Main/Sub headings. Tight letter spacing for headings. Left-align dense content."
+  },
+  "colors": {
+    "archetype": "SWISS & HIGH-CONTRAST (Authority, Clarity, Truth) mixed with THE PERFORMANCE PRO for dashboard precision",
+    "palette": {
+      "base": "Stark White (#FFFFFF) for light, Deep Obsidian (#0A0A0A) for dark",
+      "primary": "Signal Blue (#007AFF) or Trust Navy for CTAs",
+      "secondary": "10% Tinted Grey for structural elements",
+      "accent": "Warning Yellow and Signal Red for status indicators in O.S. and RMA"
+    },
+    "rules": "No generic full-screen gradients. Color is for function and guiding action. Tint neutral greys slightly with blue (cool). Banned colors for this project: #7351B7, #1B93A4"
+  },
+  "visual_enhancers": {
+    "landing_page": "Glassmorphism for sticky headers (backdrop-blur-xl bg-white/70 or bg-black/60). Soft ambient shadows. Generous spacing (p-12 to p-32).",
+    "dashboard": "Grid Borders (Technical Look). Expose the skeleton with border-collapse style layout. 1px subtle borders on cards, flat surfaces without muddy shadows. Dense padding (p-4 to p-6)."
+  },
+  "components_strategy": {
+    "marketing_pages": "Custom HTML/Tailwind for layouts. Shadcn only for complex interactive logic. Use Bento grid mode A.",
+    "dashboard_area": "Shadcn components heavily utilized (Tables, Dialogs, Select, Tabs, Forms). Go cardless where possible or use rectangular, dense, flat styles.",
+    "forms": "Never use native input. Use Shadcn Form, Input, Select.",
+    "specific_features": {
+      "signature_canvas": "Use 'react-signature-canvas' package for the digital signature requirement in O.S.",
+      "charts": "Use Recharts (Shadcn Charts) for Dashboard metrics (weekly agenda load, garage usage).",
+      "calendar": "Use Shadcn Calendar or build a custom Kanban/Timeline with HTML/Tailwind for O.S. scheduling."
+    }
+  },
+  "grids": {
+    "marketing": "MODE A: The 'Tetris' Grid. Asymmetrical. grid-cols-1 md:grid-cols-12, wide gaps (gap-8).",
+    "dashboard": "MODE B: High Density Grid. grid-cols-1 md:grid-cols-4, tight gaps (gap-4). Every pixel utilized."
+  },
+  "layouts": {
+    "structure": "Sidebar navigation for the ERP module. Persistent but collapsible. Mobile shifts to bottom nav or hamburger.",
+    "tables": "Must overflow horizontally on mobile with proper clipping and visual hints."
+  },
+  "motion": {
+    "rules": "Minimalist in dashboard (micro-interactions for feedback). Staggered entrances for list items. Must respect prefers-reduced-motion.",
+    "interactions": "Hover states must explicitly set text color (e.g., hover:bg-slate-900 hover:text-white). Button focus states require ring."
+  },
+  "accessibility": {
+    "contrast": "APCA / WCAG AA standard. Min 4.5:1 for small text. 3:1 for large/interactive.",
+    "testing": "MANDATORY: All interactive elements MUST include data-testid attribute (e.g., data-testid='submit-os-button')."
+  },
+  "media": {
+    "rules": "Never use placeholder images. Keep subjects clear.",
+    "image_urls": [
+      {
+        "url": "https://images.unsplash.com/photo-1758518731706-be5d5230e5a5?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2OTF8MHwxfHNlYXJjaHwzfHxidXNpbmVzcyUyMHByb2Zlc3Npb25hbCUyMHRlYW18ZW58MHx8fHwxNzg3OTU2MzUyfDA&ixlib=rb-4.1.0&q=85",
+        "description": "Business professionals collaborating - Ideal for 'About Us' or Landing Page Hero",
+        "category": "marketing_hero"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1558002038-1055907df827?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAxODF8MHwxfHNlYXJjaHwxfHxzbWFydCUyMGhvbWUlMjBhdXRvbWF0aW9ufGVufDB8fHx8MTc4Nzk1NjM1Mnww&ixlib=rb-4.1.0&q=85",
+        "description": "Smart lock accessed via phone - Represents Residential Automation",
+        "category": "product_context"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1608377205619-03a0b4c4e270?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAxODF8MHwxfHNlYXJjaHwyfHxzbWFydCUyMGhvbWUlMjBhdXRvbWF0aW9ufGVufDB8fHx8MTc4Nzk1NjM1Mnww&ixlib=rb-4.1.0&q=85",
+        "description": "Mobile app controlling smart lights - Great for Features/App Showcase",
+        "category": "app_feature"
+      },
+      {
+        "url": "https://images.pexels.com/photos/4487383/pexels-photo-4487383.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "description": "Warehouse and boxes - Represents the Estoque (Inventory) Module",
+        "category": "dashboard_inventory"
+      }
+    ]
+  },
+  "packages_to_install": [
+    "lucide-react",
+    "react-signature-canvas",
+    "recharts"
+  ],
+  "responsive": {
+    "breakpoint": "Mobile-first approach is MANDATORY. Design for small screens first, then scale up with sm:, md:, lg:.",
+    "layout": "Grid layouts MUST collapse to 1 column on mobile. Dashboard tables convert to vertically stacked cards. ERP sidebar becomes a hamburger menu.",
+    "typography": "Headings scale down on mobile (H1 max text-4xl). Input text must be text-base (16px) to prevent iOS zoom.",
+    "overflow_guard": "Constrain flex/grid children. Prevent horizontal scrolling on the body. Use overflow-x-auto strictly on table containers.",
+    "tap_targets": "All buttons, links, and form elements must be at least 44x44px for touch interfaces."
+  },
+  "instructions_to_main_agent": [
+    "You are building for a React JavaScript (.js) environment, NOT TypeScript (.tsx). Adapt component generation accordingly.",
+    "Implement a mobile-first responsive approach. This is critical for the target audience.",
+    "DO NOT use a completely transparent background on headers or overlays. Use backdrop-blur-xl and semi-transparent colors (e.g. bg-white/70).",
+    "Include 'data-testid' attributes on ALL buttons, inputs, and clickable elements for automated testing.",
+    "The application requires custom JWT Auth and Stripe payment tiers ($100/mo, $250/3mo, $900/yr). Add UI scaffolding for these.",
+    "For the 'Agenda/O.S.' form, integrate 'react-signature-canvas' to allow clients to sign on-screen.",
+    "Build granular permission logic visually (e.g. grayed out tabs for employees lacking permission).",
+    "Use standard HTML/Tailwind for the landing page (Bento grids, generous spacing), and Shadcn for the Dashboard (high data density, modular widgets)."
+  ],
+  "UNIVERSAL_GUIDELINES_FOR_MAIN_AGENT": [
+    "Create depth through layered design elements with z-index hierarchy.",
+    "Use glass-morphism effects with backdrop filters (12-24px blur) for sticky/floating elements.",
+    "You MUST NOT apply universal transitions (e.g., transition: all). Target specific properties like opacity, transform, colors.",
+    "You MUST NOT center align the app container. Do not add text-align: center to the root App CSS.",
+    "Every interaction needs micro-animations - hover states, transitions, active presses.",
+    "Use generous padding (2-3x typical) for marketing areas. Cramped designs look cheap.",
+    "NEVER use AI assistant Emoji characters (like \ud83e\udd16\ud83e\udde0\ud83d\udcad\ud83d\udca1\ud83d\udd2e\ud83c\udfaf) for icons. Use Phosphor or Lucide icons.",
+    "Use sonner for toast notifications."
+  ]
+}

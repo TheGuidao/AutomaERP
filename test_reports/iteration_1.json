@@ -1,0 +1,28 @@
+{
+  "summary": "Backend-only smoke + integration tests for AutomaERP. Ran full test script against public REACT_APP_BACKEND_URL covering auth, plans, payments (simulated paid via mongo), company creation gating, CEO perms, full ERP CRUD, materials reservation lifecycle, client history + previous_notes, vehicle status transitions, RMA stock decrement, employee granular permissions, subscription expiry gating, tenant isolation with two companies, and object-storage upload/download. All 17 checks passed.",
+  "tested_scope": ["backend", "auth", "integration"],
+  "passed": [
+    "POST /api/auth/register",
+    "POST /api/auth/login + GET /api/auth/me (no company)",
+    "GET /api/plans returns 3 plans with correct amounts (10000/25000/90000)",
+    "POST /api/payments/checkout requires JWT and returns checkout_url/session_id; status flips to paid after mongo update",
+    "POST /api/companies rejected with 402 when no paid transaction",
+    "POST /api/companies succeeds with paid txn; consumes it; sets subscription_expires_at ~30 days ahead",
+    "GET /api/auth/me returns is_ceo=true, subscription_active=true, DEFAULT_CEO_PERMS",
+    "CRUD: clients, vehicles, categories, products",
+    "Materials reservation: create O.S. with qty_taken=3 -> product.reserved=3, vehicle.status=in_use",
+    "Finalize O.S. with qty_used=2 -> product.quantity=8, reserved=0, vehicle.status=available, signature uploaded",
+    "Client history sorted desc + new O.S. carries previous_notes from prior one",
+    "RMA reduces product qty by 1 and records stock_movement",
+    "POST /api/notes as CEO",
+    "Employee w/ obras.view only: GET /api/clients 200, POST /api/clients 403, GET /api/products 403",
+    "Subscription expiry: past subscription_expires_at -> GET /api/orders returns 402",
+    "Tenant isolation: second company sees empty /api/clients",
+    "POST /api/upload + GET /api/files?path=&token= returns exact file bytes"
+  ],
+  "failed": [],
+  "action_items": [],
+  "success_rate": {"backend": "100%", "frontend": "not tested (skipped per request)"},
+  "retest_needed": false,
+  "full_testing_deferred": true
+}

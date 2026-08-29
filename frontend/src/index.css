@@ -1,0 +1,68 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+
+:root {
+    --background: 0 0% 100%;
+    --foreground: 220 15% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 220 15% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 15% 10%;
+    --primary: 217 100% 50%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 15% 96%;
+    --secondary-foreground: 220 15% 10%;
+    --muted: 220 15% 96%;
+    --muted-foreground: 220 8% 45%;
+    --accent: 220 15% 96%;
+    --accent-foreground: 220 15% 10%;
+    --destructive: 0 84% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 13% 90%;
+    --input: 220 13% 90%;
+    --ring: 217 100% 50%;
+    --radius: 0.5rem;
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+    font-family: 'IBM Plex Sans', -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    background: hsl(var(--background));
+    color: hsl(var(--foreground));
+}
+
+h1, h2, h3, h4, h5, .font-display {
+    font-family: 'Manrope', sans-serif;
+    letter-spacing: -0.02em;
+}
+
+@layer base {
+    * { @apply border-border; }
+    body { @apply bg-background text-foreground; }
+}
+
+/* Grid technical dashboard borders */
+.grid-panel {
+    @apply border border-slate-200 bg-white;
+}
+.grid-panel-header {
+    @apply border-b border-slate-200 px-4 py-3 flex items-center justify-between;
+}
+
+.tab-locked {
+    opacity: 0.4;
+    pointer-events: none;
+}
+
+/* signature canvas */
+.sig-canvas {
+    border: 1px dashed hsl(var(--border));
+    border-radius: 8px;
+    background: #fafafa;
+    touch-action: none;
+}
