@@ -9,6 +9,7 @@ export function AuthProvider({ children }) {
   const [company, setCompany] = useState(null);
   const [perms, setPerms] = useState({});
   const [isCeo, setIsCeo] = useState(false);
+  const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
   const [subscriptionActive, setSubscriptionActive] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -21,6 +22,7 @@ export function AuthProvider({ children }) {
       setCompany(data.company);
       setPerms(data.permissions || {});
       setIsCeo(data.is_ceo);
+      setIsPlatformAdmin(!!data.is_platform_admin);
       setSubscriptionActive(data.subscription_active);
     } catch (e) {
       localStorage.removeItem("automa_token");
@@ -42,7 +44,7 @@ export function AuthProvider({ children }) {
   };
   const logout = () => {
     localStorage.removeItem("automa_token");
-    setUser(null); setCompany(null); setPerms({}); setIsCeo(false); setSubscriptionActive(false);
+    setUser(null); setCompany(null); setPerms({}); setIsCeo(false); setIsPlatformAdmin(false); setSubscriptionActive(false);
   };
 
   const can = (tab, action = "view") => {
@@ -51,7 +53,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthCtx.Provider value={{ user, company, perms, isCeo, subscriptionActive, loading, login, register, logout, refresh, can }}>
+    <AuthCtx.Provider value={{ user, company, perms, isCeo, isPlatformAdmin, subscriptionActive, loading, login, register, logout, refresh, can }}>
       {children}
     </AuthCtx.Provider>
   );

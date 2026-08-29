@@ -15,6 +15,7 @@ export default function Agenda() {
   const [form, setForm] = useState(null);
   const [detail, setDetail] = useState(null);
   const [finalize, setFinalize] = useState(null);
+  const [q, setQ] = useState("");
   const canEdit = can("agenda", "edit");
 
   const load = async () => {
@@ -41,7 +42,8 @@ export default function Agenda() {
   };
   const del = async (id) => { if (!window.confirm("Excluir?")) return; await api.delete(`/orders/${id}`); load(); };
 
-  const groupedByDate = orders.reduce((acc, o) => { (acc[o.scheduled_date] = acc[o.scheduled_date] || []).push(o); return acc; }, {});
+  const filteredOrders = orders.filter(o => !q || [o.title, o.description, o.client_snapshot?.name].filter(Boolean).some(f=>f.toLowerCase().includes(q.toLowerCase())));
+  const groupedByDate = filteredOrders.reduce((acc, o) => { (acc[o.scheduled_date] = acc[o.scheduled_date] || []).push(o); return acc; }, {});
   const dates = Object.keys(groupedByDate).sort();
 
   return (
@@ -51,7 +53,9 @@ export default function Agenda() {
         {canEdit && <button data-testid="agenda-new-btn" onClick={openNew} className="bg-black text-white px-4 py-2 rounded flex items-center gap-2"><Plus size={16}/> Nova O.S.</button>}
       </div>
 
-      {dates.length === 0 && <div className="grid-panel p-12 text-center text-slate-500">Nenhuma O.S. agendada</div>}
+      <input data-testid="agenda-search" placeholder="Buscar por título, cliente ou descrição..." value={q} onChange={e=>setQ(e.target.value)} className="border border-border rounded px-3 py-2 bg-transparent text-sm max-w-md w-full"/>
+
+      {dates.length === 0 && <div className="grid-panel p-12 text-center text-muted-foreground">Nenhuma O.S. encontrada</div>}
       {dates.map(date => (
         <div key={date} className="grid-panel">
           <div className="grid-panel-header"><h3 className="font-display font-semibold">{new Date(date+"T12:00").toLocaleDateString("pt-BR", {weekday:"long", day:"numeric", month:"long"})}</h3></div>
@@ -211,8 +215,8 @@ function OSFinalizeModal({ order, onClose, onDone }) {
 function Modal({ children, onClose, title, testid }) {
   return (
     <div data-testid={testid} className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center p-4 overflow-y-auto">
-      <div className="bg-white w-full max-w-2xl border border-slate-200 my-8">
-        <div className="border-b flex justify-between items-center p-4"><h3 className="font-display font-semibold">{title}</h3><button onClick={onClose}><X size={18}/></button></div>
+      <div className="bg-card text-foreground w-full max-w-2xl border border-border my-8">
+        <div className="border-b border-border flex justify-between items-center p-4"><h3 className="font-display font-semibold">{title}</h3><button onClick={onClose}><X size={18}/></button></div>
         <div className="p-6">{children}</div>
       </div>
     </div>

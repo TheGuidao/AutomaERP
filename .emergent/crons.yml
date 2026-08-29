@@ -1,0 +1,8 @@
+crons:
+  - name: sub-reminders
+    description: "Envia lembretes por email aos CEOs 7, 3 e 1 dias antes da assinatura expirar"
+    cron: "0 12 * * *"
+    endpoint: "{{BASE_URL}}/api/cron/subscription-reminders"
+    method: POST
+    # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
+    enabled: true

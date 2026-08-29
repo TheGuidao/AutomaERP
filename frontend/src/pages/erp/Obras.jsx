@@ -7,6 +7,7 @@ import { Plus, Trash2, X, History } from "lucide-react";
 export default function Obras() {
   const { can } = useAuth();
   const [clients, setClients] = useState([]);
+  const [q, setQ] = useState("");
   const [form, setForm] = useState(null);
   const [history, setHistory] = useState(null);
   const canEdit = can("obras", "edit");
@@ -30,10 +31,14 @@ export default function Obras() {
         <div><h1 className="font-display text-3xl font-bold">Obras · Clientes</h1><p className="text-slate-500 text-sm">Cadastro e histórico</p></div>
         {canEdit && <button data-testid="obras-new-btn" onClick={()=>setForm({name:"",contact_name:"",phone:"",email:"",address:"",notes:""})} className="bg-black text-white px-4 py-2 rounded flex items-center gap-2"><Plus size={16}/> Novo cliente</button>}
       </div>
+      <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+        <input data-testid="obras-search" placeholder="Buscar cliente por nome, contato ou telefone..." value={q} onChange={e=>setQ(e.target.value)} className="border border-border rounded px-3 py-2 bg-transparent text-sm max-w-md w-full"/>
+        <div className="text-xs text-muted-foreground">{clients.filter(c=>!q||[c.name,c.contact_name,c.phone,c.address].filter(Boolean).some(f=>f.toLowerCase().includes(q.toLowerCase()))).length} de {clients.length}</div>
+      </div>
       <div className="grid-panel">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left"><tr><th className="p-3">Nome</th><th className="p-3">Contato</th><th className="p-3">Telefone</th><th className="p-3">Endereço</th><th className="p-3"></th></tr></thead>
-          <tbody>{clients.map(c => (
+          <thead className="text-left"><tr><th className="p-3">Nome</th><th className="p-3">Contato</th><th className="p-3">Telefone</th><th className="p-3">Endereço</th><th className="p-3"></th></tr></thead>
+          <tbody>{clients.filter(c=>!q||[c.name,c.contact_name,c.phone,c.address].filter(Boolean).some(f=>f.toLowerCase().includes(q.toLowerCase()))).map(c => (
             <tr key={c.id} className="border-t hover:bg-slate-50">
               <td className="p-3 font-medium">{c.name}</td><td className="p-3">{c.contact_name}</td><td className="p-3">{c.phone}</td><td className="p-3 text-slate-500">{c.address}</td>
               <td className="p-3 text-right">
@@ -44,7 +49,7 @@ export default function Obras() {
                 </>}
               </td>
             </tr>
-          ))}{clients.length===0 && <tr><td colSpan="5" className="p-8 text-center text-slate-500">Nenhum cliente</td></tr>}</tbody>
+          ))}{clients.filter(c=>!q||[c.name,c.contact_name,c.phone,c.address].filter(Boolean).some(f=>f.toLowerCase().includes(q.toLowerCase()))).length===0 && <tr><td colSpan="5" className="p-8 text-center text-muted-foreground">Nenhum cliente</td></tr>}</tbody>
         </table>
       </div>
 
@@ -75,5 +80,5 @@ export default function Obras() {
 }
 
 function Modal({ children, onClose, title }) {
-  return <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center p-4 overflow-y-auto"><div className="bg-white w-full max-w-lg border my-8"><div className="border-b flex justify-between p-4"><h3 className="font-display font-semibold">{title}</h3><button onClick={onClose}><X size={18}/></button></div><div className="p-6">{children}</div></div></div>;
+  return <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center p-4 overflow-y-auto"><div className="bg-card text-foreground w-full max-w-lg border border-border my-8"><div className="border-b border-border flex justify-between p-4"><h3 className="font-display font-semibold">{title}</h3><button onClick={onClose}><X size={18}/></button></div><div className="p-6">{children}</div></div></div>;
 }

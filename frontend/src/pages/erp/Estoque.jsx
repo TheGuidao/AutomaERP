@@ -9,6 +9,7 @@ export default function Estoque() {
   const [cats, setCats] = useState([]);
   const [prods, setProds] = useState([]);
   const [tab, setTab] = useState("all");
+  const [q, setQ] = useState("");
   const [form, setForm] = useState(null);
   const [catForm, setCatForm] = useState(false);
   const [catName, setCatName] = useState("");
@@ -21,7 +22,8 @@ export default function Estoque() {
   };
   useEffect(() => { load(); }, []);
 
-  const filtered = tab === "all" ? prods : prods.filter(p => p.category_id === tab);
+  const filtered = (tab === "all" ? prods : prods.filter(p => p.category_id === tab))
+    .filter(p => !q || p.name.toLowerCase().includes(q.toLowerCase()) || (p.sku||"").toLowerCase().includes(q.toLowerCase()));
 
   const saveCat = async () => { if (!catName) return; await api.post("/categories", { name: catName }); setCatName(""); setCatForm(false); load(); };
   const delCat = async (id) => { if (!window.confirm("Excluir categoria?")) return; await api.delete(`/categories/${id}`); load(); };
@@ -52,7 +54,14 @@ export default function Estoque() {
         </div>}
       </div>
 
-      <div className="flex flex-wrap gap-2 border-b pb-2">
+      <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+        <div className="relative flex-1 max-w-md">
+          <input data-testid="prod-search" placeholder="Buscar produto por nome ou SKU..." value={q} onChange={e=>setQ(e.target.value)} className="w-full border border-border rounded px-3 py-2 bg-transparent text-sm"/>
+        </div>
+        <div className="text-xs text-muted-foreground">{filtered.length} de {prods.length} produto(s)</div>
+      </div>
+
+      <div className="flex flex-wrap gap-2 border-b border-border pb-2">
         <button data-testid="cat-tab-all" onClick={()=>setTab("all")} className={`px-3 py-1 text-sm ${tab==="all"?"bg-black text-white":"border"}`}>Todos ({prods.length})</button>
         {cats.map(c => <div key={c.id} className="flex items-center">
           <button data-testid={`cat-tab-${c.id}`} onClick={()=>setTab(c.id)} className={`px-3 py-1 text-sm ${tab===c.id?"bg-black text-white":"border"}`}>{c.name} ({prods.filter(p=>p.category_id===c.id).length})</button>
@@ -110,5 +119,5 @@ export default function Estoque() {
 }
 
 function Modal({ children, onClose, title }) {
-  return <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center p-4 overflow-y-auto"><div className="bg-white w-full max-w-md border my-8"><div className="border-b flex justify-between p-4"><h3 className="font-display font-semibold">{title}</h3><button onClick={onClose}><X size={18}/></button></div><div className="p-6">{children}</div></div></div>;
+  return <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center p-4 overflow-y-auto"><div className="bg-card text-foreground w-full max-w-md border border-border my-8"><div className="border-b border-border flex justify-between p-4"><h3 className="font-display font-semibold">{title}</h3><button onClick={onClose}><X size={18}/></button></div><div className="p-6">{children}</div></div></div>;
 }

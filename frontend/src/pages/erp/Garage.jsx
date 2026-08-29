@@ -7,6 +7,7 @@ import { Plus, Trash2, X, Wrench } from "lucide-react";
 export default function Garage() {
   const { can } = useAuth();
   const [vehicles, setVehicles] = useState([]);
+  const [q, setQ] = useState("");
   const [form, setForm] = useState(null);
   const [maint, setMaint] = useState(null);
   const canEdit = can("garage", "edit");
@@ -33,10 +34,11 @@ export default function Garage() {
         <div><h1 className="font-display text-3xl font-bold">Garagem</h1><p className="text-slate-500 text-sm">Frota da empresa</p></div>
         {canEdit && <button data-testid="garage-new-btn" onClick={()=>setForm({plate:"", model:"", year:"", km:0, status:"available", notes:""})} className="bg-black text-white px-4 py-2 rounded flex items-center gap-2"><Plus size={16}/> Novo veículo</button>}
       </div>
+      <input data-testid="garage-search" placeholder="Buscar por placa ou modelo..." value={q} onChange={e=>setQ(e.target.value)} className="border border-border rounded px-3 py-2 bg-transparent text-sm max-w-md w-full"/>
       <div className="grid-panel">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left"><tr><th className="p-3">Placa</th><th className="p-3">Modelo</th><th className="p-3">Ano</th><th className="p-3">KM</th><th className="p-3">Status</th><th className="p-3"></th></tr></thead>
-          <tbody>{vehicles.map(v => (
+          <thead className="text-left"><tr><th className="p-3">Placa</th><th className="p-3">Modelo</th><th className="p-3">Ano</th><th className="p-3">KM</th><th className="p-3">Status</th><th className="p-3"></th></tr></thead>
+          <tbody>{vehicles.filter(v=>!q||[v.plate,v.model].filter(Boolean).some(f=>f.toLowerCase().includes(q.toLowerCase()))).map(v => (
             <tr key={v.id} className="border-t hover:bg-slate-50">
               <td className="p-3 font-mono">{v.plate}</td>
               <td className="p-3">{v.model}</td>
@@ -79,8 +81,8 @@ export default function Garage() {
 function Modal({ children, onClose, title }) {
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center p-4">
-      <div className="bg-white w-full max-w-md border border-slate-200 my-8">
-        <div className="border-b flex justify-between items-center p-4"><h3 className="font-display font-semibold">{title}</h3><button onClick={onClose}><X size={18}/></button></div>
+      <div className="bg-card text-foreground w-full max-w-md border border-border my-8">
+        <div className="border-b border-border flex justify-between items-center p-4"><h3 className="font-display font-semibold">{title}</h3><button onClick={onClose}><X size={18}/></button></div>
         <div className="p-6">{children}</div>
       </div>
     </div>

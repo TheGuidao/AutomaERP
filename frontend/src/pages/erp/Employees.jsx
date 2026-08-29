@@ -17,6 +17,7 @@ const TABS = [
 export default function Employees() {
   const { isCeo } = useAuth();
   const [emps, setEmps] = useState([]);
+  const [q, setQ] = useState("");
   const [form, setForm] = useState(null);
 
   const load = async () => { const {data} = await api.get("/employees"); setEmps(data.employees); };
@@ -53,10 +54,11 @@ export default function Employees() {
         <div><h1 className="font-display text-3xl font-bold">Funcionários</h1><p className="text-slate-500 text-sm">Equipe e permissões</p></div>
         <button data-testid="emp-new-btn" onClick={openNew} className="bg-black text-white px-4 py-2 rounded flex items-center gap-2"><Plus size={16}/> Novo funcionário</button>
       </div>
+      <input data-testid="emp-search" placeholder="Buscar por nome, email ou função..." value={q} onChange={e=>setQ(e.target.value)} className="border border-border rounded px-3 py-2 bg-transparent text-sm max-w-md w-full"/>
       <div className="grid-panel">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left"><tr><th className="p-3">Nome</th><th className="p-3">Email</th><th className="p-3">Função</th><th className="p-3"></th></tr></thead>
-          <tbody>{emps.map(e => (
+          <thead className="text-left"><tr><th className="p-3">Nome</th><th className="p-3">Email</th><th className="p-3">Função</th><th className="p-3"></th></tr></thead>
+          <tbody>{emps.filter(e=>!q||[e.name,e.email,e.role].filter(Boolean).some(f=>f.toLowerCase().includes(q.toLowerCase()))).map(e => (
             <tr key={e.id} className="border-t hover:bg-slate-50">
               <td className="p-3 font-medium">{e.name}</td><td className="p-3">{e.email}</td><td className="p-3">{e.role || (e.company_id && "—")}</td>
               <td className="p-3 text-right">
@@ -96,5 +98,5 @@ export default function Employees() {
   );
 }
 function Modal({ children, onClose, title }) {
-  return <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center p-4 overflow-y-auto"><div className="bg-white w-full max-w-xl border my-8"><div className="border-b flex justify-between p-4"><h3 className="font-display font-semibold">{title}</h3><button onClick={onClose}><X size={18}/></button></div><div className="p-6">{children}</div></div></div>;
+  return <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center p-4 overflow-y-auto"><div className="bg-card text-foreground w-full max-w-xl border border-border my-8"><div className="border-b border-border flex justify-between p-4"><h3 className="font-display font-semibold">{title}</h3><button onClick={onClose}><X size={18}/></button></div><div className="p-6">{children}</div></div></div>;
 }

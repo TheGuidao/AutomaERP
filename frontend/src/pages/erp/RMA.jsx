@@ -8,6 +8,7 @@ export default function RMA() {
   const { can } = useAuth();
   const [items, setItems] = useState([]);
   const [products, setProducts] = useState([]);
+  const [q, setQ] = useState("");
   const [form, setForm] = useState(null);
   const canEdit = can("rma", "edit");
 
@@ -29,10 +30,11 @@ export default function RMA() {
         <div><h1 className="font-display text-3xl font-bold">RMA</h1><p className="text-slate-500 text-sm">Produtos com defeito</p></div>
         {canEdit && <button data-testid="rma-new-btn" onClick={()=>setForm({product_id: products[0]?.id||"", serial_number:"", problem:""})} className="bg-black text-white px-4 py-2 rounded flex items-center gap-2"><Plus size={16}/> Abrir RMA</button>}
       </div>
+      <input data-testid="rma-search" placeholder="Buscar por produto ou número de série..." value={q} onChange={e=>setQ(e.target.value)} className="border border-border rounded px-3 py-2 bg-transparent text-sm max-w-md w-full"/>
       <div className="grid-panel">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left"><tr><th className="p-3">Produto</th><th className="p-3">Nº série</th><th className="p-3">Problema</th><th className="p-3">Status</th><th className="p-3">Data</th><th className="p-3"></th></tr></thead>
-          <tbody>{items.map(r => (
+          <thead className="text-left"><tr><th className="p-3">Produto</th><th className="p-3">Nº série</th><th className="p-3">Problema</th><th className="p-3">Status</th><th className="p-3">Data</th><th className="p-3"></th></tr></thead>
+          <tbody>{items.filter(r=>!q||[r.product_name,r.serial_number,r.problem].filter(Boolean).some(f=>f.toLowerCase().includes(q.toLowerCase()))).map(r => (
             <tr key={r.id} className="border-t hover:bg-slate-50">
               <td className="p-3">{r.product_name}</td><td className="p-3 font-mono">{r.serial_number}</td>
               <td className="p-3 text-slate-600">{r.problem}</td>
@@ -55,5 +57,5 @@ export default function RMA() {
   );
 }
 function Modal({ children, onClose, title }) {
-  return <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center p-4"><div className="bg-white w-full max-w-md border my-8"><div className="border-b flex justify-between p-4"><h3 className="font-display font-semibold">{title}</h3><button onClick={onClose}><X size={18}/></button></div><div className="p-6">{children}</div></div></div>;
+  return <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center p-4"><div className="bg-card text-foreground w-full max-w-md border border-border my-8"><div className="border-b border-border flex justify-between p-4"><h3 className="font-display font-semibold">{title}</h3><button onClick={onClose}><X size={18}/></button></div><div className="p-6">{children}</div></div></div>;
 }

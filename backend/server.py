@@ -16,7 +16,14 @@ import bcrypt
 import jwt
 import requests
 import stripe
-from fastapi import FastAPI, APIRouter, Depends, HTTPException, Request, Header, Query, status
+import httpx
+import re
+import ipaddress
+import asyncio
+from html import escape
+from html.parser import HTMLParser
+from urllib.parse import urlparse
+from fastapi import FastAPI, APIRouter, Depends, HTTPException, Request, Header, Query, status, BackgroundTasks
 from fastapi.responses import Response, JSONResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
@@ -41,6 +48,13 @@ STORAGE_URL = STORAGE_BASE.rstrip("/") + "/objstore/api/v1/storage"
 
 stripe.api_key = os.environ.get("STRIPE_SECRET_KEY") or "sk_test_emergent"
 STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
+
+# Email / cron / admin config
+EMAIL_BASE_URL = "https://integrations.emergentagent.com"
+EMAIL_KEY = os.environ.get("EMERGENT_EMAIL_KEY", "")
+EMAIL_FROM_NAME = os.environ.get("EMAIL_FROM_NAME", "AutomaERP")
+WEBHOOK_CRON_SECRET = os.environ.get("WEBHOOK_CRON_SECRET", "")
+PLATFORM_ADMIN_EMAILS = set([e.strip().lower() for e in os.environ.get("PLATFORM_ADMIN_EMAILS", "").split(",") if e.strip()])
 
 # ---------- Plans ----------
 PLANS = {
@@ -125,6 +139,107 @@ def clean(doc):
     doc.pop("password_hash", None)
     return doc
 
+# ---------- Email helpers ----------
+_SHORTENERS = ("bit.ly", "tinyurl.com", "t.co", "is.gd", "cutt.ly", "goo.gl", "rebrand.ly")
+_CRED_ASK = ("reply with your password", "reply with the code", "send your password", "cvv",
+             "send us your password", "enter your password below", "confirm your card number",
+             "your full card number", "seed phrase", "recovery phrase", "verify your card",
+             "social security number", "confirm your bank details")
+_HOSTISH = re.compile(r"\b(?:https?://)?((?:[a-z0-9-]+\.)+[a-z]{2,})", re.I)
+
+def _host_ok(host: str) -> bool:
+    if not host or "xn--" in host:
+        return False
+    try:
+        ipaddress.ip_address(host)
+        return False
+    except ValueError:
+        pass
+    return not any(host == s or host.endswith("." + s) for s in _SHORTENERS)
+
+def _same_site(shown: str, real: str) -> bool:
+    return shown == real or real.endswith("." + shown) or shown.endswith("." + real)
+
+class _EmailScan(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.tags, self.urls, self.anchors = set(), [], []
+        self._href, self._text = None, []
+    def handle_starttag(self, tag, attrs):
+        self.tags.add(tag.lower())
+        self.urls += [v for k, v in attrs if k.lower() in ("href", "src") and v]
+        if tag.lower() == "a":
+            self._href = dict((k.lower(), v) for k, v in attrs).get("href")
+            self._text = []
+    def handle_data(self, data):
+        if self._href is not None:
+            self._text.append(data)
+    def handle_endtag(self, tag):
+        if tag.lower() == "a" and self._href is not None:
+            self.anchors.append((self._href, "".join(self._text)))
+            self._href, self._text = None, []
+
+def _assert_safe_email(subject: str, html: str) -> None:
+    scan = _EmailScan(); scan.feed(html)
+    if scan.tags & {"form", "input", "textarea", "select"}:
+        raise ValueError("No forms or input fields in email (G2)")
+    body = f"{subject}\n{html}".lower()
+    for p in _CRED_ASK:
+        if p in body:
+            raise ValueError(f"Email asks for credentials: {p!r} (G2)")
+    for url in scan.urls:
+        low = url.strip().lower()
+        if low.startswith(("mailto:", "tel:", "cid:", "#")):
+            continue
+        if not low.startswith("https://"):
+            raise ValueError(f"Email links must be absolute https: {url!r} (G3)")
+        host = urlparse(low).hostname or ""
+        if not _host_ok(host) or urlparse(low).username is not None:
+            raise ValueError(f"Bad URL: {url!r} (G3)")
+    for href, text in scan.anchors:
+        real = urlparse(href.strip().lower()).hostname or ""
+        if not real:
+            continue
+        for m in _HOSTISH.finditer(text):
+            if not _same_site(m.group(1).lower(), real):
+                raise ValueError(f"Anchor text {m.group(1)!r} != real host {real!r} (G3)")
+
+async def send_email(*, to: str, subject: str, html: str) -> Optional[str]:
+    if not EMAIL_KEY:
+        logging.warning("EMERGENT_EMAIL_KEY not set - skipping email")
+        return None
+    _assert_safe_email(subject, html)
+    payload = {"to": [to], "subject": subject, "html": html, "from_name": EMAIL_FROM_NAME}
+    try:
+        async with httpx.AsyncClient(timeout=30) as c:
+            r = await c.post(f"{EMAIL_BASE_URL}/api/v1/email/send",
+                             headers={"X-Email-Key": EMAIL_KEY}, json=payload)
+        r.raise_for_status()
+        return r.json().get("id")
+    except Exception as e:
+        logging.error(f"Email send failed: {e}")
+        return None
+
+def _reminder_html(name: str, company_name: str, days_left: int, expires_iso: str) -> str:
+    urgency = "hoje" if days_left <= 0 else f"em {days_left} dia{'s' if days_left != 1 else ''}"
+    return (
+        f'<table role="presentation" width="100%" style="background:#f6f7f9;padding:24px">'
+        f'<tr><td align="center"><table role="presentation" width="560" style="background:#fff;border:1px solid #e5e7eb;font-family:Arial,sans-serif">'
+        f'<tr><td style="padding:24px 28px;border-bottom:1px solid #e5e7eb">'
+        f'<div style="font-size:12px;letter-spacing:0.2em;color:#2563eb;text-transform:uppercase">AutomaERP</div>'
+        f'<h1 style="margin:8px 0 0;font-size:22px;color:#0f172a">Sua assinatura vence {urgency}</h1></td></tr>'
+        f'<tr><td style="padding:24px 28px;color:#334155;font-size:15px;line-height:1.6">'
+        f'<p>Olá <strong>{escape(name)}</strong>,</p>'
+        f'<p>A assinatura do plano da empresa <strong>{escape(company_name)}</strong> no AutomaERP '
+        f'vence {urgency} (em {escape(expires_iso[:10])}). Renove antes que expire para não perder acesso ao sistema.</p>'
+        f'<p style="margin:24px 0"><a href="https://work-sync-45.preview.emergentagent.com/planos" '
+        f'style="display:inline-block;background:#0f172a;color:#fff;padding:12px 24px;text-decoration:none;font-weight:600">Renovar agora</a></p>'
+        f'<p style="font-size:13px;color:#64748b">Se já renovou, ignore este email.</p></td></tr>'
+        f'<tr><td style="padding:16px 28px;border-top:1px solid #e5e7eb;font-size:12px;color:#94a3b8">'
+        f'Enviado por {escape(EMAIL_FROM_NAME)}. Nunca pedimos sua senha ou dados de cartão por email.</td></tr>'
+        f'</table></td></tr></table>'
+    )
+
 # ---------- Auth ----------
 security = HTTPBearer(auto_error=False)
 
@@ -178,6 +293,33 @@ async def require_tab(user, tab: str, action: str = "view"):
     if not is_ceo and not check_perm(perms, tab, action):
         raise HTTPException(403, f"Sem permissão para {action} em {tab}")
     return company
+
+def is_platform_admin(user) -> bool:
+    return (user.get("email") or "").lower() in PLATFORM_ADMIN_EMAILS
+
+async def require_platform_admin(user=Depends(current_user)):
+    if not is_platform_admin(user):
+        raise HTTPException(403, "Somente admin da plataforma")
+    return user
+
+async def apply_coupon(code: Optional[str], lookup_key: str) -> Dict[str, Any]:
+    """Return {'valid':bool, 'amount':int (in cents after discount), 'discount':int, 'coupon':doc?}"""
+    plan = PLANS[lookup_key]
+    base = plan["amount"]
+    if not code:
+        return {"valid": True, "amount": base, "discount": 0, "coupon": None}
+    c = await db.coupons.find_one({"code": code.upper().strip(), "active": True})
+    if not c:
+        return {"valid": False, "amount": base, "discount": 0, "coupon": None, "error": "Cupom inválido"}
+    if c.get("max_uses") is not None and c.get("uses", 0) >= c["max_uses"]:
+        return {"valid": False, "amount": base, "discount": 0, "coupon": None, "error": "Cupom esgotado"}
+    discount = 0
+    if c.get("percent_off"):
+        discount = int(base * c["percent_off"] / 100)
+    elif c.get("amount_off"):
+        discount = min(int(c["amount_off"]), base)
+    final = max(base - discount, 0)
+    return {"valid": True, "amount": final, "discount": discount, "coupon": c}
 
 # ---------- Models ----------
 class RegisterIn(BaseModel):
@@ -278,6 +420,19 @@ class NoteIn(BaseModel):
 class CheckoutIn(BaseModel):
     lookup_key: str
     origin_url: str
+    coupon_code: Optional[str] = None
+
+class CouponIn(BaseModel):
+    code: str
+    description: Optional[str] = ""
+    percent_off: Optional[int] = None  # 1-100
+    amount_off: Optional[int] = None   # cents
+    max_uses: Optional[int] = None
+    active: bool = True
+
+class ValidateCouponIn(BaseModel):
+    code: str
+    lookup_key: str
 
 # ---------- App ----------
 @asynccontextmanager
@@ -338,6 +493,7 @@ async def me(user=Depends(current_user)):
         "company": clean(dict(company)) if company else None,
         "permissions": perms,
         "is_ceo": is_ceo,
+        "is_platform_admin": is_platform_admin(user),
         "subscription_active": subscription_active,
     }
 
@@ -842,33 +998,141 @@ async def create_checkout(body: CheckoutIn, user=Depends(current_user)):
     if body.lookup_key not in PLANS:
         raise HTTPException(400, "Plano inválido")
     plan = PLANS[body.lookup_key]
+    coupon_result = await apply_coupon(body.coupon_code, body.lookup_key)
+    if body.coupon_code and not coupon_result["valid"]:
+        raise HTTPException(400, coupon_result.get("error", "Cupom inválido"))
+    final_amount = coupon_result["amount"]
+    # If free (100% discount / first month free), bypass Stripe and mark paid immediately
+    if final_amount == 0:
+        session_id = f"free_{new_id()}"
+        await db.payment_transactions.insert_one({
+            "session_id": session_id, "user_id": user["id"], "lookup_key": body.lookup_key,
+            "amount": 0, "currency": "brl",
+            "status": "completed", "payment_status": "paid", "consumed": False,
+            "coupon_code": body.coupon_code, "discount": coupon_result["discount"],
+            "created_at": dt_iso(now_utc()), "updated_at": dt_iso(now_utc()),
+        })
+        if coupon_result.get("coupon"):
+            await db.coupons.update_one({"code": coupon_result["coupon"]["code"]}, {"$inc": {"uses": 1}})
+        return {"checkout_url": f"{body.origin_url}/payment/success?session_id={session_id}", "session_id": session_id, "free": True}
     session = stripe.checkout.Session.create(
         mode="payment",
         line_items=[{
             "price_data": {
                 "currency": "brl",
                 "product_data": {"name": f"AutomaERP - {plan['name']}"},
-                "unit_amount": plan["amount"],
+                "unit_amount": final_amount,
             },
             "quantity": 1,
         }],
         success_url=f"{body.origin_url}/payment/success?session_id={{CHECKOUT_SESSION_ID}}",
         cancel_url=f"{body.origin_url}/payment/cancel",
-        metadata={"user_id": user["id"], "lookup_key": body.lookup_key},
+        metadata={"user_id": user["id"], "lookup_key": body.lookup_key, "coupon_code": body.coupon_code or ""},
     )
     await db.payment_transactions.insert_one({
         "session_id": session.id, "user_id": user["id"], "lookup_key": body.lookup_key,
-        "amount": plan["amount"], "currency": "brl",
+        "amount": final_amount, "currency": "brl",
         "status": "initiated", "payment_status": "pending", "consumed": False,
+        "coupon_code": body.coupon_code, "discount": coupon_result["discount"],
         "created_at": dt_iso(now_utc()), "updated_at": dt_iso(now_utc()),
     })
+    if coupon_result.get("coupon"):
+        await db.coupons.update_one({"code": coupon_result["coupon"]["code"]}, {"$inc": {"uses": 1}})
     return {"checkout_url": session.url, "session_id": session.id}
+
+# ---------- Coupons ----------
+@api.post("/coupons/validate")
+async def validate_coupon(body: ValidateCouponIn):
+    if body.lookup_key not in PLANS:
+        raise HTTPException(400, "Plano inválido")
+    res = await apply_coupon(body.code, body.lookup_key)
+    if not res["valid"]:
+        return {"valid": False, "error": res.get("error", "Cupom inválido")}
+    base = PLANS[body.lookup_key]["amount"]
+    return {"valid": True, "discount": res["discount"], "final_amount": res["amount"], "base_amount": base}
+
+@api.get("/admin/coupons")
+async def list_coupons(user=Depends(require_platform_admin)):
+    items = await db.coupons.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
+    return {"coupons": items}
+
+@api.post("/admin/coupons")
+async def create_coupon(body: CouponIn, user=Depends(require_platform_admin)):
+    if not body.percent_off and not body.amount_off:
+        raise HTTPException(400, "Informe percent_off ou amount_off")
+    if body.percent_off and (body.percent_off < 1 or body.percent_off > 100):
+        raise HTTPException(400, "percent_off deve estar entre 1-100")
+    code = body.code.upper().strip()
+    if await db.coupons.find_one({"code": code}):
+        raise HTTPException(400, "Código já existe")
+    c = {
+        "id": new_id(), "code": code, "description": body.description,
+        "percent_off": body.percent_off, "amount_off": body.amount_off,
+        "max_uses": body.max_uses, "uses": 0, "active": body.active,
+        "created_at": dt_iso(now_utc()),
+    }
+    await db.coupons.insert_one(c)
+    return {"coupon": clean(dict(c))}
+
+@api.put("/admin/coupons/{code}")
+async def update_coupon(code: str, body: CouponIn, user=Depends(require_platform_admin)):
+    if not body.percent_off and not body.amount_off:
+        raise HTTPException(400, "Informe percent_off ou amount_off")
+    if body.percent_off and (body.percent_off < 1 or body.percent_off > 100):
+        raise HTTPException(400, "percent_off deve estar entre 1-100")
+    upd = body.model_dump(exclude={"code"})
+    await db.coupons.update_one({"code": code.upper()}, {"$set": upd})
+    c = await db.coupons.find_one({"code": code.upper()}, {"_id": 0})
+    return {"coupon": c}
+
+@api.delete("/admin/coupons/{code}")
+async def delete_coupon(code: str, user=Depends(require_platform_admin)):
+    await db.coupons.delete_one({"code": code.upper()})
+    return {"ok": True}
+
+# ---------- Cron ----------
+@api.post("/cron/subscription-reminders")
+async def cron_subscription_reminders(request: Request, background: BackgroundTasks, authorization: Optional[str] = Header(None)):
+    # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
+    expected = f"Bearer {WEBHOOK_CRON_SECRET}"
+    if not authorization or authorization != expected:
+        raise HTTPException(401, "Não autorizado")
+    background.add_task(_process_reminders)
+    return {"status": "queued"}
+
+async def _process_reminders():
+    now = now_utc()
+    windows = [7, 3, 1, 0]
+    companies = await db.companies.find({}).to_list(2000)
+    sent = 0
+    for comp in companies:
+        exp = comp.get("subscription_expires_at")
+        if not exp: continue
+        if isinstance(exp, str): exp = datetime.fromisoformat(exp)
+        delta_days = (exp - now).days
+        if delta_days not in windows and not (delta_days < 0 and delta_days >= -1):
+            continue
+        target_days = 0 if delta_days <= 0 else delta_days
+        # Dedup: don't send same window twice
+        key = f"{comp['id']}:{exp.date().isoformat()}:{target_days}"
+        if await db.email_log.find_one({"key": key}):
+            continue
+        ceo = await db.users.find_one({"id": comp["ceo_user_id"]})
+        if not ceo: continue
+        try:
+            html = _reminder_html(ceo.get("name","cliente"), comp["name"], target_days, exp.isoformat())
+            eid = await send_email(to=ceo["email"], subject=f"Sua assinatura AutomaERP vence em {target_days} dia(s)", html=html)
+            await db.email_log.insert_one({"key": key, "email_id": eid, "sent_at": dt_iso(now_utc())})
+            sent += 1
+        except Exception as e:
+            logging.error(f"Reminder send failed for {comp['id']}: {e}")
+    logging.info(f"Reminders processed: sent={sent}")
 
 @api.get("/payments/status/{session_id}")
 async def payment_status(session_id: str):
     rec = await db.payment_transactions.find_one({"session_id": session_id}, {"_id": 0})
     if not rec: raise HTTPException(404, "Não encontrado")
-    if rec.get("payment_status") != "paid":
+    if rec.get("payment_status") != "paid" and not session_id.startswith("free_"):
         try:
             s = stripe.checkout.Session.retrieve(session_id)
             if s.payment_status == "paid" or s.status == "complete":

@@ -25,6 +25,34 @@
     --input: 220 13% 90%;
     --ring: 217 100% 50%;
     --radius: 0.5rem;
+    --surface: 0 0% 100%;
+    --surface-2: 220 15% 98%;
+    --text-muted: 220 8% 45%;
+}
+
+.dark {
+    --background: 222 20% 8%;
+    --foreground: 220 15% 92%;
+    --card: 222 20% 10%;
+    --card-foreground: 220 15% 92%;
+    --popover: 222 20% 10%;
+    --popover-foreground: 220 15% 92%;
+    --primary: 217 100% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 222 18% 14%;
+    --secondary-foreground: 220 15% 92%;
+    --muted: 222 18% 14%;
+    --muted-foreground: 220 10% 65%;
+    --accent: 222 18% 14%;
+    --accent-foreground: 220 15% 92%;
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 222 18% 20%;
+    --input: 222 18% 20%;
+    --ring: 217 100% 60%;
+    --surface: 222 20% 10%;
+    --surface-2: 222 20% 12%;
+    --text-muted: 220 10% 65%;
 }
 
 html, body {
@@ -46,23 +74,32 @@ h1, h2, h3, h4, h5, .font-display {
     body { @apply bg-background text-foreground; }
 }
 
-/* Grid technical dashboard borders */
 .grid-panel {
-    @apply border border-slate-200 bg-white;
+    background: hsl(var(--surface));
+    border: 1px solid hsl(var(--border));
 }
 .grid-panel-header {
-    @apply border-b border-slate-200 px-4 py-3 flex items-center justify-between;
+    border-bottom: 1px solid hsl(var(--border));
+    padding: 0.75rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
 }
 
-.tab-locked {
-    opacity: 0.4;
-    pointer-events: none;
+/* Inputs and selects across the app take theme colors */
+input, select, textarea {
+    background: hsl(var(--surface));
+    color: hsl(var(--foreground));
+    border-color: hsl(var(--border));
 }
+input::placeholder, textarea::placeholder { color: hsl(var(--muted-foreground)); }
 
-/* signature canvas */
 .sig-canvas {
     border: 1px dashed hsl(var(--border));
     border-radius: 8px;
-    background: #fafafa;
+    background: hsl(var(--surface-2));
     touch-action: none;
 }
+
+.dark table thead { background: hsl(var(--surface-2)); }
+.dark tbody tr:hover { background: hsl(var(--surface-2)); }

@@ -2,6 +2,7 @@ import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { Toaster } from "sonner";
+import { ThemeProvider } from "next-themes";
 
 import Landing from "@/pages/Landing";
 import Login from "@/pages/Login";
@@ -19,6 +20,7 @@ import Estoque from "@/pages/erp/Estoque";
 import RMA from "@/pages/erp/RMA";
 import MyAgenda from "@/pages/erp/MyAgenda";
 import Employees from "@/pages/erp/Employees";
+import AdminCoupons from "@/pages/AdminCoupons";
 
 function Protected({ children }) {
   const { user, loading } = useAuth();
@@ -36,8 +38,17 @@ function Gate({ children }) {
   return children;
 }
 
+function PlatformAdminOnly({ children }) {
+  const { isPlatformAdmin, loading, user } = useAuth();
+  if (loading) return null;
+  if (!user) return <Navigate to="/login" replace />;
+  if (!isPlatformAdmin) return <Navigate to="/" replace />;
+  return children;
+}
+
 export default function App() {
   return (
+    <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
     <BrowserRouter>
       <AuthProvider>
         <Toaster position="top-right" richColors />
@@ -59,9 +70,11 @@ export default function App() {
             <Route path="minha-agenda" element={<MyAgenda />} />
             <Route path="funcionarios" element={<Employees />} />
           </Route>
+          <Route path="/admin/cupons" element={<PlatformAdminOnly><AdminCoupons /></PlatformAdminOnly>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>
+    </ThemeProvider>
   );
 }

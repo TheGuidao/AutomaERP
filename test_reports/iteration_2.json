@@ -1,0 +1,51 @@
+{
+  "summary": "Iteration 2 backend-only. Focus on new features: coupon system (validate + admin CRUD), checkout with coupon (free + partial discount + max_uses), platform_admin flag on /auth/me, cron subscription reminders (auth + dedup effect). Plus regression smoke of old flow (register/login/checkout/company/clients). 26/26 pytest checks passed against public REACT_APP_BACKEND_URL.",
+  "tested_scope": ["backend", "coupons", "cron", "auth", "payments", "regression"],
+  "passed": [
+    "GET /api/auth/me is_platform_admin=true for guibitt85@gmail.com, false for other user",
+    "GET/POST /api/admin/coupons: 401 without auth, 403 for non-admin",
+    "POST /api/admin/coupons WELCOME(100%,10) as admin ok; persisted in mongo",
+    "GET /api/admin/coupons lists WELCOME",
+    "POST /api/admin/coupons duplicate code -> 400",
+    "POST /api/admin/coupons missing percent_off & amount_off -> 400",
+    "POST /api/admin/coupons percent_off 0 or 101 -> 400",
+    "PUT /api/admin/coupons/{code} updates fields",
+    "DELETE /api/admin/coupons/{code} removes coupon",
+    "POST /api/coupons/validate WELCOME/automa_monthly -> valid=true, discount=10000, final=0, base=10000",
+    "POST /api/coupons/validate unknown code -> valid=false with error 'Cupom inválido'",
+    "POST /api/coupons/validate empty code -> valid=true, discount=0",
+    "POST /api/coupons/validate invalid plan -> 400",
+    "POST /api/payments/checkout invalid coupon -> 400",
+    "POST /api/payments/checkout WELCOME 100% -> session_id starts with 'free_', checkout_url /payment/success, txn.payment_status='paid', amount=0, coupon.uses incremented",
+    "GET /api/payments/status/free_XXX returns payment_status=paid; POST /api/companies then consumes txn (consumed=true)",
+    "POST /api/payments/checkout BLACK50 50% off -> Stripe cs_ session, txn.amount=5000, discount=5000, pending, coupon.uses=1",
+    "ONESHOT max_uses=1: second checkout -> 400 'Cupom esgotado'",
+    "POST /api/cron/subscription-reminders: 401 without auth, 401 wrong secret",
+    "POST /api/cron/subscription-reminders with correct Bearer WEBHOOK_CRON_SECRET -> 200 {status:'queued'}",
+    "Cron effect: company expiring in ~3 days -> 1 email_log entry with key containing company_id and ':3'; second call -> still 1 entry (deduplicated)",
+    "Regression smoke: register/login/checkout(no coupon)/mark paid/create company/POST+GET /api/clients all working"
+  ],
+  "failed": [],
+  "backend_issues": {"critical": [], "minor": []},
+  "test_report_links": [
+    "/app/backend/tests/test_coupons_and_cron.py",
+    "/app/test_reports/pytest/iteration_2.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py is 1191 lines - beyond the 700-line guideline; consider splitting into routers/modules (auth, payments, coupons, cron, erp resources).",
+    "apply_coupon increments coupon.uses at checkout creation time (not at successful payment). For paid (Stripe) flow, if the user abandons the session, the coupon quota is still consumed. Consider decrementing on cancel/expire or moving increment to webhook/status=paid.",
+    "PUT /api/admin/coupons/{code} does not validate percent_off range or duplicate discount presence like POST; a PUT with percent_off=200 or without any discount would still write. Recommend reusing the create validation.",
+    "cron _process_reminders: 'delta_days not in windows and not (delta_days < 0 and delta_days >= -1)' logic works but is subtle; consider explicit windows [7,3,1,0,-1] and clearer bucketing to avoid missing edge dates around timezones.",
+    "PLATFORM_ADMIN_EMAILS is read once at import time; changes to env require full restart (already fine for prod, just document)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_coupons_and_cron.py (new)"
+  ],
+  "success_rate": {"backend": "100% (26/26)", "frontend": "not tested (skipped per request)"},
+  "test_credentials": "Admin: guibitt85@gmail.com / Test1234! (existing from iter1). Non-admin: generated per-run nonadmin_<hex>@teste.com / Test1234!.",
+  "seed_data_creation": "Tests create disposable coupons WELCOME, BLACK50, ONESHOT (cleaned via session-scoped fixture) and per-test companies/users prefixed with reg_/once_/stripe_/reminder_. No global seeds required beyond preserving iter1 admin user.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Regression suite /app/backend/tests/test_coupons_and_cron.py can be re-run any time; it is self-contained (fixtures create users, coupons cleaned up). Combine with iter1 script for full coverage. MongoDB db='automa_erp'; direct pymongo used to bypass Stripe (payment_status='paid') for company creation flow."
+}
